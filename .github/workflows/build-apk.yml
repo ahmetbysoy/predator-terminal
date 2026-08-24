@@ -1,0 +1,100 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.kt'
+      - '**.kts'
+      - '**.xml'
+      - '**.properties'
+      - '**.pro'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: APK Build (Debug + Release)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission to Gradle wrapper
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: predator-terminal-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: predator-terminal-release
+          path: app/build/outputs/apk/release/*.apk
+
+  release:
+    name: Otomatik GitHub Release (APK'lar buradan indirilir)
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: predator-terminal-debug
+          path: artifacts/debug
+
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: predator-terminal-release
+          path: artifacts/release
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          VERSION="v1.0.${{ github.run_number }}"
+          gh release create "$VERSION" \
+            artifacts/debug/*.apk \
+            artifacts/release/*.apk \
+            --title "Predator Terminal $VERSION" \
+            --notes "Otomatik APK build — $VERSION
+
+Bu sürüm, 'main' dalına her push'ta GitHub Actions tarafından otomatik derlenir.
+
+- **predator-terminal-debug.apk** → hızlı test / loglama için
+- **predator-terminal-release.apk** → günlük kullanım için (minify + R8 açık)"

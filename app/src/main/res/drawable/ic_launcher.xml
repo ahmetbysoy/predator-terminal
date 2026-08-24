@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nişangah (crosshair) launcher ikonu: siyah zemin + yeşil hedef halkası -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Siyah zemin -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M0,0 h108 v108 h-108 z" />
+
+    <!-- Dış halka -->
+    <path
+        android:strokeColor="#00FF00"
+        android:strokeWidth="4"
+        android:pathData="M54,22 a32,32 0 1,0 0.01,0 z" />
+
+    <!-- Artı (crosshair) -->
+    <path
+        android:strokeColor="#00FF00"
+        android:strokeWidth="5"
+        android:pathData="M54,6 L54,102 M6,54 L102,54" />
+
+    <!-- Merkez nokta -->
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M49,49 h10 v10 h-10 z" />
+</vector>
