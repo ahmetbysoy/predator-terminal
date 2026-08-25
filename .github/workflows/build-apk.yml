@@ -92,9 +92,4 @@ jobs:
             artifacts/debug/*.apk \
             artifacts/release/*.apk \
             --title "Predator Terminal $VERSION" \
-            --notes "Otomatik APK build — $VERSION
-
-Bu sürüm, 'main' dalına her push'ta GitHub Actions tarafından otomatik derlenir.
-
-- **predator-terminal-debug.apk** → hızlı test / loglama için
-- **predator-terminal-release.apk** → günlük kullanım için (minify + R8 açık)"
+            --notes "Otomatik APK build - $VERSION (debug + release). APK'lar bu release'e eklendi. Detaylar icin README.md'ye bak."
