@@ -10,3 +10,6 @@ local.properties
 *.keystore
 *.jks
 !gradle/wrapper/gradle-wrapper.jar
+
+# Yerelde derlenen APK'lar (CI üretir)
+/apk/

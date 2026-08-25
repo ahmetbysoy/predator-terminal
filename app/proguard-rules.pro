@@ -20,3 +20,8 @@
 -keepclasseswithmembers class com.predator.terminal.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# EncryptedSharedPreferences (security-crypto)
+-keep class androidx.security.crypto.** { *; }
+-dontwarn androidx.security.crypto.**
+-dontwarn com.google.errorprone.annotations.**

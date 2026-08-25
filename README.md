@@ -75,6 +75,49 @@ Release APK'sı varsayılan olarak debug anahtarıyla imzalanır (telefona kurul
 - Grafikte tutulan mum sayısı: 100 (`updateKline` içindeki sabit)
 - UI yenileme hızı: 250ms (`MainActivity`)
 
+## 🔫 OTOMATİK İNFAZ (PredatorTrigger)
+
+Terminal sadece **izlemez** — istersen sinyal geldiğinde **kendisi emir gönderir**. Üç mod:
+
+| Mod | Ne yapar? |
+|---|---|
+| `AUTO: KAPALI` | Sadece görüntüleme (varsayılan) |
+| `AUTO: PAPER 📄` | Sinyal ≥7/10 + değişim → log + Telegram bildirimi, **gerçek emir yok** |
+| `AUTO: CANLI 🔴` | Aynı koşul → Bybit'te **gerçek market emri** |
+
+Akış: `SignalEngine` sinyal üretir → `SpoofingDetector` emir defterini kontrol eder (sahte duvar = emir iptal) → `BybitExecutor` Bybit v5 REST API'ye imzalı emir gönderir → `TelegramNotifier` her adımı telefonuna bildirir.
+
+### Kurulum (2 dk)
+
+1. **Bybit API key:** bybit.com → API → Create API Key → sadece **trade** izni, IP kısıtla
+2. **Telegram:** @BotFather'dan bot aç → token al, chat ID'ni bul (`@userinfobot` ile öğrenebilirsin)
+3. Uygulamada **⚙ Ayarlar** → sembol (örn. `BTCUSDT`), pozisyon büyüklüğü (`0.001` = spot'ta 0.001 BTC), kategori (`spot` veya `linear`), API key/secret, Telegram token/chat ID
+4. **AUTO** butonuna bas → `PAPER` → (key tanımlıysa) `CANLI`
+
+> ⚠️ **Anahtarlar cihazda şifreli saklanır** (`EncryptedSharedPreferences`), repo'ya asla yazılmaz. APK'ya gömülü hiçbir anahtar yoktur.
+>
+> ⚠️ **Risk:** CANLI mod gerçek parayla işlem yapar. Önce PAPER'da çalıştır, küçük pozisyonla başla. EMA+hacim sinyali **garanti kazanç değildir**; piyasa kaybettirir. Bu yazılım yatırım tavsiyesi değildir.
+
+### Neden "proxy rotation / blackhat" YOK?
+
+İlk taslakta öyle bir istek vardı ama o kısım bilinçli olarak yapılmadı: kendi Bybit hesabına resmi API ile bağlanmak zaten meşru ve çalışıyor. Kimlik gizleyen proxy kullanımı Bybit'in kullanım şartlarını ihlal eder, hesabın kapatılmasına ve varlıkların donmasına yol açabilir. Kısaca: **proxy'ye ihtiyacın yok, sadece kendi key'lerine ihtiyacın var.**
+
+### Mimari
+
+```
+app/src/main/java/com/predator/terminal/
+├── MarketDataStream.kt    # WSS motoru (kline + depth), yeniden bağlanma
+├── SignalEngine.kt        # EMA 9/21 + hacim patlaması sinyal analizi
+├── PredatorChartView.kt   # Custom Canvas mum grafiği + likidite duvarları
+├── SpoofingDetector.kt    # Sahte duvar (spoof) sezgisel tespiti
+├── BybitExecutor.kt       # Bybit v5 REST — HMAC-SHA256 imzalı market emri
+├── TelegramNotifier.kt    # Telegram Bot API bildirimleri
+├── PredatorTrigger.kt     # 1 sn döngü: sinyal → tuzak kontrolü → infaz
+├── SignalLog.kt           # Tetikleyici olay günlüğü
+├── Config.kt              # Şifreli ayarlar (symbol, boyut, anahtarlar)
+└── MainActivity.kt        # Kontrol merkezi + AUTO mod + ayarlar
+```
+
 ---
 
 *Avını gözlerinle gör. Analiz et. Ve parayı sök.* 🔫
