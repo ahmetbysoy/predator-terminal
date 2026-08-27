@@ -50,8 +50,6 @@ class MainActivity : Activity() {
                 allowContentAccess = true
                 mediaPlaybackRequiresUserGesture = false
                 databaseEnabled = true
-                @Suppress("DEPRECATION")
-                setAppCacheEnabled(true)
                 useWideViewPort = true
                 loadWithOverviewMode = true
             }
