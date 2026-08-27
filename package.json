@@ -1,0 +1,17 @@
+{
+  "name": "predator-terminal",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=predator.js --minify --format=iife --target=es2020",
+    "build:android": "npm run build && cp index.html predator.js android/app/src/main/assets/ && cd android && ./gradlew assembleDebug",
+    "test": "tsx src/phase0/validation.ts && tsx src/phase1/validation.ts && tsx src/phase2/validation.ts && tsx src/phase4/validation.ts && tsx src/phase5/validation.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "esbuild": "^0.25.4",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
