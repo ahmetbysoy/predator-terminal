@@ -88,7 +88,66 @@ class PredatorTerminal {
     // ── Load initial data ──
     await this.loadSymbol(this.currentSymbol);
 
+    // ── DÜZELTME #4: Native Android bridge ──
+    this.initNativeBridge();
+
     console.log("[Predator] Ready. 🔥");
+  }
+
+  /**
+   * DÜZELTME #4: Native Android bridge integration.
+   * - Registers window.PredatorNative for callbacks from Kotlin
+   * - Syncs alarms to native SharedPreferences via AndroidBridge
+   * - Native alarm trigger → JS toast + annotation update
+   */
+  private initNativeBridge(): void {
+    const bridge = (globalThis as any).AndroidBridge;
+    if (!bridge) {
+      console.log("[Predator] No Android bridge (running in browser)");
+      return;
+    }
+
+    console.log(`[Predator] Android bridge detected (SDK ${bridge.getSdkVersion()})`);
+
+    // ── Register native callback handler ──
+    (globalThis as any).PredatorNative = {
+      onAlarmTriggered: (symbol: string, currentPrice: number, alarmId: string) => {
+        console.log(`[Predator] Native alarm: ${symbol} @ ${currentPrice} (${alarmId})`);
+        this.showToast(`🚨 NATIVE ALARM: ${symbol} → ${currentPrice}`);
+        this.renderEngine.mark(RenderLayer.ANNOTATIONS);
+      },
+
+      getPlatform: () => bridge.getPlatform(),
+    };
+
+    // ── Hook alarm events to sync with native ──
+    this.alarmManager.on("triggered", () => {
+      this.syncAlarmsToNative();
+    });
+
+    // ── Initial sync of existing alarms ──
+    this.syncAlarmsToNative();
+  }
+
+  private syncAlarmsToNative(): void {
+    const bridge = (globalThis as any).AndroidBridge;
+    if (!bridge) return;
+
+    try {
+      const alarms = this.alarmManager.getAlarms();
+      const nativeFormat = alarms.map(a => ({
+        id: a.id,
+        symbol: a.symbol,
+        price: a.price,
+        type: a.type,
+        active: a.active,
+        triggered: a.triggered,
+        createdAt: a.createdAt,
+      }));
+      bridge.syncAlarms(JSON.stringify(nativeFormat));
+    } catch (err) {
+      console.error("[Predator] Alarm sync to native failed:", err);
+    }
   }
 
   private initModules(): void {
@@ -365,10 +424,14 @@ class PredatorTerminal {
       }
     });
 
-    // ── Stream: ticker → UserAlarmManager.checkAll() ──
+    // ── Stream: ticker → UserAlarmManager.checkAll() + native sync ──
     this.streamMux.on("ticker", (data: any) => {
       if (Array.isArray(data)) {
-        this.alarmManager.checkAll(data);
+        const triggered = this.alarmManager.checkAll(data);
+        // ── DÜZELTME #4: Sync alarm state to native after each check cycle ──
+        if (triggered.length > 0) {
+          this.syncAlarmsToNative();
+        }
       }
     });
 

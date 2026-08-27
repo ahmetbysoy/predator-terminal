@@ -62,7 +62,7 @@ export class PredatorTerminalController {
   private frameCount: number = 0;
   private frameDropCount: number = 0;
   private lastFrameTime: number = 0;
-  private renderInterval: number | null = null;
+  private renderInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: PredatorTerminalConfig) {
     this.config = config;

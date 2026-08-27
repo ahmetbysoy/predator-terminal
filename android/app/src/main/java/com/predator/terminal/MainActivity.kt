@@ -55,12 +55,18 @@ class MainActivity : Activity() {
             }
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
+
+            // ── DÜZELTME #4: JS ↔ Native alarm bridge ──
+            addJavascriptInterface(AlarmBridge(this@MainActivity), "AndroidBridge")
         }
 
         setContentView(webView)
 
         // ── Load bundled web app from assets ──
         webView.loadUrl("file:///android_asset/index.html")
+
+        // ── Pass WebView reference to service for JS callbacks ──
+        PredatorStreamService.webViewRef = webView
 
         // ── Start foreground service for background WebSocket ──
         startPredatorService()
