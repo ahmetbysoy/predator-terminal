@@ -19,6 +19,7 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
+import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -46,9 +47,12 @@ class PredatorStreamService : Service() {
         private const val INITIAL_RECONNECT_DELAY = 1000L
         private const val MAX_RECONNECT_DELAY = 30000L
 
-        // ── WebView reference for JS callbacks ──
-        @Volatile
-        var webViewRef: android.webkit.WebView? = null
+        // ── WebView reference for JS callbacks (WeakReference to prevent memory leak) ──
+        private var webViewRef: WeakReference<android.webkit.WebView>? = null
+
+        fun setWebView(webView: android.webkit.WebView?) {
+            webViewRef = webView?.let { WeakReference(it) }
+        }
 
         // ── Alarm update signal ──
         private val alarmsUpdated = AtomicBoolean(false)
@@ -289,7 +293,7 @@ class PredatorStreamService : Service() {
 
         handler.post {
             try {
-                webViewRef?.evaluateJavascript(js, null)
+                webViewRef?.get()?.evaluateJavascript(js, null)
             } catch (e: Exception) {
                 Log.e(TAG, "JS callback failed", e)
             }

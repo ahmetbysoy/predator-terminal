@@ -53,7 +53,7 @@ class MainActivity : Activity() {
                 useWideViewPort = true
                 loadWithOverviewMode = true
             }
-            webViewClient = WebViewClient()
+            webViewClient = PredatorWebViewClient()
             webChromeClient = WebChromeClient()
 
             // ── DÜZELTME #4: JS ↔ Native alarm bridge ──
@@ -66,7 +66,7 @@ class MainActivity : Activity() {
         webView.loadUrl("file:///android_asset/index.html")
 
         // ── Pass WebView reference to service for JS callbacks ──
-        PredatorStreamService.webViewRef = webView
+        PredatorStreamService.setWebView(webView)
 
         // ── Start foreground service for background WebSocket ──
         startPredatorService()
@@ -90,7 +90,46 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        PredatorStreamService.setWebView(null)
         webView.destroy()
         super.onDestroy()
+    }
+}
+
+/**
+ * PredatorWebViewClient: Sayfa yükleme hatalarını yakalar,
+ * local asset'lerin doğru yüklendiğini doğrular.
+ */
+class PredatorWebViewClient : WebViewClient() {
+
+    override fun onReceivedError(
+        view: android.webkit.WebView,
+        request: android.webkit.WebResourceRequest,
+        error: android.webkit.WebResourceError
+    ) {
+        android.util.Log.e(
+            "PredatorWebView",
+            "Load error: ${request.url} → ${error.description}"
+        )
+    }
+
+    override fun shouldInterceptRequest(
+        view: android.webkit.WebView,
+        request: android.webkit.WebResourceRequest
+    ): android.webkit.WebResourceResponse? {
+        // ── Block all external requests — force local assets only ──
+        val url = request.url.toString()
+        if (url.startsWith("file:///android_asset/")) return null
+
+        // Allow data: and blob: URIs
+        if (url.startsWith("data:") || url.startsWith("blob:")) return null
+
+        // WebSocket connections (Binance WSS) are handled by OkHttp, not WebView
+        // Block any other external request
+        android.util.Log.w("PredatorWebView", "Blocked external request: $url")
+        return android.webkit.WebResourceResponse(
+            "text/plain", "UTF-8",
+            java.io.ByteArrayInputStream("Blocked".toByteArray())
+        )
     }
 }
