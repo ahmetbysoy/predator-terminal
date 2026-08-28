@@ -97,8 +97,8 @@ class MainActivity : Activity() {
 }
 
 /**
- * PredatorWebViewClient: Sayfa yükleme hatalarını yakalar,
- * local asset'lerin doğru yüklendiğini doğrular.
+ * PredatorWebViewClient: Sayfa yükleme hatalarını yakalar ve loglar.
+ * HTTPS/WSS trafiğe izin verilir — sadece HTTP cleartext bloklanır.
  */
 class PredatorWebViewClient : WebViewClient() {
 
@@ -113,23 +113,27 @@ class PredatorWebViewClient : WebViewClient() {
         )
     }
 
-    override fun shouldInterceptRequest(
+    override fun onReceivedHttpError(
+        view: android.webkit.WebView,
+        request: android.webkit.WebResourceRequest,
+        errorResponse: android.webkit.WebResourceResponse
+    ) {
+        android.util.Log.w(
+            "PredatorWebView",
+            "HTTP ${errorResponse.statusCode}: ${request.url}"
+        )
+    }
+
+    override fun shouldOverrideUrlLoading(
         view: android.webkit.WebView,
         request: android.webkit.WebResourceRequest
-    ): android.webkit.WebResourceResponse? {
-        // ── Block all external requests — force local assets only ──
+    ): Boolean {
         val url = request.url.toString()
-        if (url.startsWith("file:///android_asset/")) return null
-
-        // Allow data: and blob: URIs
-        if (url.startsWith("data:") || url.startsWith("blob:")) return null
-
-        // WebSocket connections (Binance WSS) are handled by OkHttp, not WebView
-        // Block any other external request
-        android.util.Log.w("PredatorWebView", "Blocked external request: $url")
-        return android.webkit.WebResourceResponse(
-            "text/plain", "UTF-8",
-            java.io.ByteArrayInputStream("Blocked".toByteArray())
-        )
+        // ── Sadece http:// (cleartext) blokla, https:// ve wss:// serbest ──
+        if (url.startsWith("http://")) {
+            android.util.Log.w("PredatorWebView", "Blocked cleartext: $url")
+            return true
+        }
+        return false
     }
 }
