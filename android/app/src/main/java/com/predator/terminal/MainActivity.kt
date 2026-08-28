@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -14,6 +15,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 
 class MainActivity : Activity() {
+
+    companion object {
+        private const val TAG = "PredatorMain"
+    }
 
     private lateinit var webView: WebView
 
@@ -52,11 +57,23 @@ class MainActivity : Activity() {
                 databaseEnabled = true
                 useWideViewPort = true
                 loadWithOverviewMode = true
+
+                // ── KRİTİK: file:// scheme'den https:// API'lere erişim ──
+                // Binance REST (https://data-api.binance.vision) ve
+                // CORS proxy'lerine fetch() yapabilmek için şart.
+                // WebSocket (wss://) de bu sayede çalışır.
+                @Suppress("DEPRECATION")
+                allowFileAccessFromFileURLs = true
+                @Suppress("DEPRECATION")
+                allowUniversalAccessFromFileURLs = true
+
+                // ── Mixed content izin ver (file:// → https://) ──
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
             webViewClient = PredatorWebViewClient()
             webChromeClient = WebChromeClient()
 
-            // ── DÜZELTME #4: JS ↔ Native alarm bridge ──
+            // ── JS ↔ Native alarm bridge ──
             addJavascriptInterface(AlarmBridge(this@MainActivity), "AndroidBridge")
         }
 
@@ -68,19 +85,25 @@ class MainActivity : Activity() {
         // ── Pass WebView reference to service for JS callbacks ──
         PredatorStreamService.setWebView(webView)
 
-        // ── Start foreground service for background WebSocket ──
+        // ── Start foreground service (crash-safe) ──
         startPredatorService()
     }
 
     private fun startPredatorService() {
-        val intent = Intent(this, PredatorStreamService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            val intent = Intent(this, PredatorStreamService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            // Service başlatılamazsa uygulama çökmesin
+            Log.e(TAG, "Foreground service başlatılamadı", e)
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()
@@ -90,50 +113,35 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        PredatorStreamService.setWebView(null)
-        webView.destroy()
+        try {
+            PredatorStreamService.setWebView(null)
+            webView.destroy()
+        } catch (e: Exception) {
+            Log.e(TAG, "onDestroy error", e)
+        }
         super.onDestroy()
     }
 }
 
 /**
  * PredatorWebViewClient: Sayfa yükleme hatalarını yakalar ve loglar.
- * HTTPS/WSS trafiğe izin verilir — sadece HTTP cleartext bloklanır.
+ * Tüm HTTPS/WSS trafiğe izin verilir.
  */
 class PredatorWebViewClient : WebViewClient() {
 
     override fun onReceivedError(
-        view: android.webkit.WebView,
+        view: WebView,
         request: android.webkit.WebResourceRequest,
         error: android.webkit.WebResourceError
     ) {
-        android.util.Log.e(
-            "PredatorWebView",
-            "Load error: ${request.url} → ${error.description}"
-        )
+        Log.e("PredatorWebView", "Load error: ${request.url} → ${error.description}")
     }
 
     override fun onReceivedHttpError(
-        view: android.webkit.WebView,
+        view: WebView,
         request: android.webkit.WebResourceRequest,
         errorResponse: android.webkit.WebResourceResponse
     ) {
-        android.util.Log.w(
-            "PredatorWebView",
-            "HTTP ${errorResponse.statusCode}: ${request.url}"
-        )
-    }
-
-    override fun shouldOverrideUrlLoading(
-        view: android.webkit.WebView,
-        request: android.webkit.WebResourceRequest
-    ): Boolean {
-        val url = request.url.toString()
-        // ── Sadece http:// (cleartext) blokla, https:// ve wss:// serbest ──
-        if (url.startsWith("http://")) {
-            android.util.Log.w("PredatorWebView", "Blocked cleartext: $url")
-            return true
-        }
-        return false
+        Log.w("PredatorWebView", "HTTP ${errorResponse.statusCode}: ${request.url}")
     }
 }
